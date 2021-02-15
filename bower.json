@@ -1,0 +1,16 @@
+{
+  "name": "gazpacho",
+  "authors": [
+    "holgac <huseyinolgac@gmail.com>"
+  ],
+  "description": "JS-free Content Management System",
+  "main": "",
+  "license": "GPLv3",
+  "homepage": "",
+  "dependencies": {
+    "bootstrap": "twbs/bootstrap#^4.5.3",
+    "components-font-awesome": "^5.15.1",
+    "jquery": "jquery/jquery#^3.5.1",
+    "underscore": "jashkenas/underscore#^1.11.0"
+  }
+}

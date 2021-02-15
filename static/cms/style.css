@@ -1,0 +1,41 @@
+body {
+    background-color: #323232;
+}
+
+.header-title {
+    color: #ccc;
+}
+
+.header-slogan {
+    color: #aaa;
+}
+
+.article-title {
+    text-align: center;
+}
+.article-title > a {
+    color: #eee;
+    font-size: 2rem;
+}
+
+.article-content {
+    color: #eee;
+    font-size: 1rem;
+    text-align: center;
+}
+
+.article-content-in-list {
+    border-bottom: .5rem solid #292929;
+    padding-bottom: 2.5rem;
+}
+
+footer {
+    padding: 2.5rem 0;
+    color: #999;
+    text-align: center;
+    background-color: #222;
+    border-top: .05rem solid #000;
+    bottom: 0;
+    width: 100%;
+}
+
