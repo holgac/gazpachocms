@@ -14,8 +14,9 @@ from django.core.handlers.asgi import ASGIHandler
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'gazpacho.settings')
 
+
 def get_asgi_application_typed() -> ASGIHandler:
- 
-  return get_asgi_application() # type: ignore
+  return get_asgi_application()  # type: ignore
+
 
 application = get_asgi_application_typed()

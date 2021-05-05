@@ -8,7 +8,7 @@ class ArticleTestCase(BaseTestCase, RestTestMixin):
   def __init__(self, *args: Any, **kwargs: Any):
     super(TestCase, self).__init__(*args, **kwargs)
   '''
-  rest_path = reverse('cms:article')
+  rest_path = reverse('cms:api:article')
 
   def _test_create_extra(self, constructed: ObjectType, persisted: ObjectType) -> None:
     self.assertEqual(persisted['author'], self.user.id)

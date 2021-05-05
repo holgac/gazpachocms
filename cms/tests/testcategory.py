@@ -4,7 +4,7 @@ from ..models import Category
 from .base import RestTestMixin, BaseTestCase, ObjectType
 
 class CategoryTestCase(BaseTestCase, RestTestMixin):
-  rest_path = reverse('cms:category')
+  rest_path = reverse('cms:api:category')
 
   def _construct(self, index: int = 0) -> ObjectType:
     return {

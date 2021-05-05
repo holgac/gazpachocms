@@ -1,0 +1,7 @@
+Usage guide
+  Run server
+    ./manage.py runserver
+  Run tests
+    ./manage.py test
+  Python typechecker
+    mypy --strict .
