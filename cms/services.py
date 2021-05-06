@@ -1,8 +1,11 @@
-from .models import Article, Category
-from typing import List, Optional, TypeVar, Generic
 import datetime
-from django.db.utils import DatabaseError, IntegrityError
 import re
+from typing import List, Optional
+
+from django.db.models import QuerySet
+from django.db.utils import DatabaseError, IntegrityError
+
+from .models import Article, Category
 
 
 class ServiceError(Exception):
@@ -15,9 +18,8 @@ class AlreadyExistsError(ServiceError):
 
 
 class ServiceBase:
-  # TODO: staticmethod -> classmethod
-  @staticmethod
-  def _handle_database_error(e: DatabaseError) -> None:
+  @classmethod
+  def _handle_database_error(cls, e: DatabaseError) -> None:
     if isinstance(e, IntegrityError):
       code, msg = e.args
       if code == 1062:
@@ -29,22 +31,35 @@ class ServiceBase:
 
 
 class ArticleService(ServiceBase):
-  @staticmethod
-  def get_by_id(id: int) -> Optional[Article]:
+  @classmethod
+  def _get_base_query(
+      cls,
+      range_query: bool = True,
+      only_visible: bool = True,
+  ) -> QuerySet[Article]:
+    q = Article.objects.all()
+    if range_query:
+      q = q.filter(direct_links_only=False)
+    if only_visible:
+      q = q.filter(visible=True)
+    return q
+
+  @classmethod
+  def get_by_id(cls, id: int) -> Optional[Article]:
     try:
-      return Article.objects.get(id=id)
+      return cls._get_base_query(range_query=False).get(id=id, visible=True)
     except Article.DoesNotExist:
       return None
 
-  @staticmethod
-  def get_by_name(name: str) -> Optional[Article]:
+  @classmethod
+  def get_by_name(cls, name: str) -> Optional[Article]:
     try:
-      return Article.objects.get(name=name)
+      return cls._get_base_query(range_query=False).get(name=name)
     except Article.DoesNotExist:
       return None
 
-  @staticmethod
-  def get_by_category(category: Category, include_descendants: bool = True) -> List[Article]:
+  @classmethod
+  def get_by_category(cls, category: Category, include_descendants: bool = True) -> List[Article]:
     categories = set([category.id])
     if include_descendants:
       prev_categories = set(categories)
@@ -52,22 +67,23 @@ class ArticleService(ServiceBase):
         result = set(cat.id for cat in Category.objects.filter(parent__in=prev_categories))
         prev_categories = result.difference(categories)
         categories.update(prev_categories)
-    return list(Article.objects.filter(category__in=categories))
+    return list(cls._get_base_query().filter(category__in=categories))
 
-  @staticmethod
-  def get_all() -> List[Article]:
+  @classmethod
+  def get_all(cls) -> List[Article]:
     # TODO: add some filters like start time, limit etc
-    # TODO: A separate method returning QuerySet so that
-    #       flags like is_visible applies to every query
-    return [a for a in Article.objects.all()]
+    return list(cls._get_base_query())
 
-  @staticmethod
+  @classmethod
   def create(
+      cls,
       name: str,
       author: int,
       title: str,
       content: str,
       category: int,
+      visible: bool,
+      direct_links_only: bool,
   ) -> Article:
     a = Article(
       name=name,
@@ -75,6 +91,8 @@ class ArticleService(ServiceBase):
       title=title,
       content=content,
       category=category,
+      visible=visible,
+      direct_links_only=direct_links_only,
     )
     try:
       a.save()
@@ -82,19 +100,24 @@ class ArticleService(ServiceBase):
       ServiceBase._handle_database_error(e)
     return a
 
-  @staticmethod
+  @classmethod
   def update(
+      cls,
       article: Article,
       name: str,
       author: Optional[int],
       title: str,
       content: str,
       category: int,
+      visible: bool,
+      direct_links_only: bool,
   ) -> Article:
     article.name = name
     article.title = title
     article.content = content
     article.category = category
+    article.visible = visible
+    article.direct_links_only = direct_links_only
     if author is not None:
       article.author = author
     article.mtime = int(datetime.datetime.now().timestamp() * 1000.0)
@@ -106,26 +129,28 @@ class ArticleService(ServiceBase):
 
 
 class CategoryService(ServiceBase):
-  @staticmethod
-  def get_by_id(id: int) -> Optional[Category]:
+
+  @classmethod
+  def get_by_id(cls, id: int) -> Optional[Category]:
     try:
       return Category.objects.get(id=id)
     except Category.DoesNotExist:
       return None
 
-  @staticmethod
-  def get_by_name(name: str) -> Optional[Category]:
+  @classmethod
+  def get_by_name(cls, name: str) -> Optional[Category]:
     try:
       return Category.objects.get(name=name)
     except Category.DoesNotExist:
       return None
 
-  @staticmethod
-  def get_all() -> List[Category]:
+  @classmethod
+  def get_all(cls) -> List[Category]:
     return [a for a in Category.objects.all()]
 
-  @staticmethod
+  @classmethod
   def create(
+      cls,
       name: str,
       long_name: str,
       parent: int,
@@ -141,13 +166,13 @@ class CategoryService(ServiceBase):
       ServiceBase._handle_database_error(e)
     return a
 
-  @staticmethod
-  def update(
-      category: Category,
-      name: str,
-      long_name: str,
-      parent: int,
-  ) -> Category:
+  @classmethod
+  def update(cls,
+             category: Category,
+             name: str,
+             long_name: str,
+             parent: int,
+             ) -> Category:
     category.name = name
     category.long_name = long_name
     category.parent = parent

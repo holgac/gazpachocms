@@ -1,13 +1,14 @@
-from django.urls import reverse
+import datetime
+import inspect
+import json
+from typing import Dict, List, Union, cast
+
 from django.contrib.auth.models import User
 from django.test import TestCase, Client
-from typing import Any, Callable, Dict, List, Optional, Union, cast
-import json
-import inspect
-import datetime
-from django.test import TestCase, Client
+from django.urls import reverse
 
-ObjectType = Dict[str, Union[str, int]]
+ObjectType = Dict[str, Union[str, int, bool]]
+
 
 # TODO: static functions
 class BaseTestCase(TestCase):
@@ -29,24 +30,23 @@ class BaseTestCase(TestCase):
 
   def _login(self) -> None:
     resp = self.client.post(reverse('cms:login'), self.creds)
-    print(resp.content.decode('UTF-8'))
     self.assertEqual(resp.status_code, 302)
 
   def _deserialize(self, raw_data: str) -> ObjectType:
     data = json.loads(raw_data)
-    return {key:value for key,value in data.items()}
+    return {key: value for key, value in data.items()}
 
   def _get_object(self, path: str, obj_id: int, expected_code: int = 200) -> ObjectType:
     resp = self.client.get(f'{path}?id={obj_id}')
     self.assertEqual(resp.status_code, expected_code)
-    if expected_code >= 400 and expected_code < 500:
+    if 400 <= expected_code < 500:
       return {}
     return self._deserialize(resp.content.decode('UTF-8'))
 
   def _get_objects(self, path: str, expected_code: int = 200) -> List[ObjectType]:
     resp = self.client.get(path)
     self.assertEqual(resp.status_code, expected_code)
-    if expected_code >= 400 and expected_code < 500:
+    if 400 <= expected_code < 500:
       return []
     content = json.loads(resp.content.decode('UTF-8'))
     return [c for c in content]
@@ -57,12 +57,11 @@ class BaseTestCase(TestCase):
       data: ObjectType,
       expected_code: int = 200,
   ) -> ObjectType:
-    resp = self.client.post(path, data)
+    resp = self.client.post(path, data, content_type='application/json')
     self.assertEqual(resp.status_code, expected_code)
-    if expected_code >= 400 and expected_code < 500:
+    if 400 <= expected_code < 500:
       return {}
     return self._deserialize(resp.content.decode('UTF-8'))
-
 
   def _update_object(
       self,
@@ -71,20 +70,21 @@ class BaseTestCase(TestCase):
       expected_code: int = 200,
   ) -> ObjectType:
     resp = self.client.put(
-        path,
-        json.dumps(data),
-        'application/json')
+      path,
+      data,
+      'application/json')
     self.assertEqual(resp.status_code, expected_code)
-    if expected_code >= 400 and expected_code < 500:
+    if 400 <= expected_code < 500:
       return {}
     return self._deserialize(resp.content.decode('UTF-8'))
+
 
 class RestTestMixin:
   rest_path = ''
 
   def _test_create_extra(self, constructed: ObjectType, persisted: ObjectType) -> None:
     pass
-  
+
   def _modify(self, data: ObjectType) -> None:
     pass
 
@@ -95,7 +95,7 @@ class RestTestMixin:
     test = cast(BaseTestCase, self)
     test._create_object(self.rest_path, self._construct(), expected_code=403)
 
-  def test_create(self) -> None:
+  def test_create_single(self) -> None:
     test = cast(BaseTestCase, self)
     test._login()
     constructed = self._construct()
@@ -103,7 +103,7 @@ class RestTestMixin:
     persisted = test._create_object(self.rest_path, constructed)
     time_after = int(datetime.datetime.now().timestamp() * 1000.0)
     for key in constructed:
-      test.assertEqual(persisted[key], constructed[key])
+      test.assertEqual(persisted[key], constructed[key], f'{key} differs')
     test.assertGreater(persisted['ctime'], time_before)
     test.assertLess(persisted['ctime'], time_after)
     test.assertGreater(persisted['mtime'], time_before)
@@ -121,7 +121,7 @@ class RestTestMixin:
     test = cast(BaseTestCase, self)
     test._login()
     obj = test._create_object(self.rest_path, self._construct())
-    readback = test._get_object(self.rest_path, int(obj['id']))
+    readback = test._get_object(self.rest_path, obj['id'])
     for key in obj:
       test.assertEqual(readback[key], obj[key])
 
@@ -130,14 +130,13 @@ class RestTestMixin:
     test.assertEqual(test._get_objects(self.rest_path), [])
     test._login()
     objects = [
-            test._create_object(self.rest_path, self._construct(i))
-            for i in range(10)
-        ]
+      test._create_object(self.rest_path, self._construct(i))
+      for i in range(10)
+    ]
     test.assertEqual(test._get_objects(self.rest_path), objects)
 
   def test_update(self) -> None:
     test = cast(BaseTestCase, self)
-    test.assertEqual(test._get_objects(self.rest_path), [])
     test._login()
     obj_before = test._create_object(self.rest_path, self._construct())
     self._modify(obj_before)

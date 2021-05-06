@@ -1,16 +1,16 @@
-from django.views import View
-from django.urls import reverse
+import json
+from typing import Any, Dict, List
+
+from django.contrib.auth.models import User
 from django.contrib.auth.views import LoginView as BaseLoginView
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, HttpResponseNotFound, HttpResponseBadRequest
 from django.middleware import csrf
-from django.contrib.auth import authenticate
-import json
-from .services import ArticleService, ServiceError, AlreadyExistsError, CategoryService
-from typing import Any, Dict, List
-from .models import Article, Category
-from django.contrib.auth.models import User
-from django.http import QueryDict
 from django.template.loader import render_to_string
+from django.urls import reverse
+from django.views import View
+
+from .models import Article, Category
+from .services import ArticleService, ServiceError, AlreadyExistsError, CategoryService
 
 
 class CmsViewMixin:
@@ -32,7 +32,6 @@ class CmsViewMixin:
       }
     }
     ctx.update(extra)
-    print(json.dumps(ctx))
     return ctx
 
   @classmethod
@@ -143,12 +142,15 @@ class ArticleView(CmsViewMixin, View):
     if not request.user.is_authenticated:
       return HttpResponseForbidden()
     try:
+      body = json.loads(request.body)
       article = self.service.create(
-        name=request.POST['name'],
+        name=body['name'],
         author=request.user.id,
-        title=request.POST['title'],
-        content=request.POST['content'],
-        category=int(request.POST['category']),
+        title=body['title'],
+        content=body['content'],
+        category=body['category'],
+        visible=body['visible'],
+        direct_links_only=body['direct_links_only'],
       )
     except ServiceError as e:
       return self.handle_service_error(e)
@@ -168,7 +170,9 @@ class ArticleView(CmsViewMixin, View):
         author=request.user.id if 'update_author' in body else article.author,
         title=body['title'],
         content=body['content'],
-        category=int(body['category']),
+        category=body['category'],
+        visible=body['visible'],
+        direct_links_only=body['direct_links_only'],
       )
 
     except ServiceError as e:
@@ -200,11 +204,12 @@ class CategoryView(CmsViewMixin, View):
   def post(self, request: HttpRequest) -> HttpResponse:
     if not request.user.is_authenticated:
       return HttpResponseForbidden()
+    body = json.loads(request.body)
     try:
       category = self.service.create(
-        name=request.POST['name'],
-        long_name=request.POST['long_name'],
-        parent=int(request.POST['parent']),
+        name=body['name'],
+        long_name=body['long_name'],
+        parent=body['parent'],
       )
     except ServiceError as e:
       return self.handle_service_error(e)
@@ -214,7 +219,7 @@ class CategoryView(CmsViewMixin, View):
     if not request.user.is_authenticated:
       return HttpResponseForbidden()
     body = json.loads(request.body)
-    category = self.service.get_by_id(int(body['id']))
+    category = self.service.get_by_id(body['id'])
     if category is None:
       return HttpResponseNotFound()
     try:
@@ -222,7 +227,7 @@ class CategoryView(CmsViewMixin, View):
         category,
         name=body['name'],
         long_name=body['long_name'],
-        parent=int(body['parent']),
+        parent=body['parent'],
       )
     except ServiceError as e:
       return self.handle_service_error(e)
@@ -256,6 +261,8 @@ def debug(request: HttpRequest) -> HttpResponse:
         title=f'article {i} title about {cat.long_name}',
         content='\n'.join([f'{i}: {cat.name}{j}' for j in range(10)]),
         category=cat.id,
+        direct_links_only=False,
+        visible=True,
       )
   ArticleService.create(
     name=f'about',
@@ -263,5 +270,16 @@ def debug(request: HttpRequest) -> HttpResponse:
     title=f'About page',
     content='This is about me',
     category=0,
+    direct_links_only=True,
+    visible=True,
+  )
+  ArticleService.create(
+    name=f'invisible',
+    author=u.id,
+    title=f'Invisible page',
+    content='This page should not be visible',
+    category=0,
+    direct_links_only=False,
+    visible=False,
   )
   return HttpResponse('ok')

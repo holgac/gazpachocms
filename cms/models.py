@@ -79,13 +79,12 @@ class UserSettings(NamedDbObject):
 
 
 class Article(NamedDbObject):
-  # TODO: only_direct_links flag to Article that prevents such
-  #       articles from showing up in main page etc.
-  # TODO: is_visible flag
   author = models.IntegerField('Author of the article')
   category = models.IntegerField('Category of the article', default=0)
   title = models.CharField('Title of the article', max_length=128)
   content = models.TextField('Content of the article')
+  visible = models.BooleanField('Is the article visible', default=True)
+  direct_links_only = models.BooleanField('Should this article not show up in range queries', default=False)
 
   def _serialize_self(self, ss: SerializeSettings) -> Dict[str, Union[int, str, bool]]:
     return {
@@ -93,4 +92,6 @@ class Article(NamedDbObject):
       'category': self.category,
       'title': self.title,
       'content': self.content,
+      'visible': self.visible,
+      'direct_links_only': self.direct_links_only,
     }

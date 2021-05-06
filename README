@@ -5,3 +5,11 @@ Usage guide
     ./manage.py test
   Python typechecker
     mypy --strict .
+  change models
+    make changes, ./manage.py makemigrations, ./manage.py migrate cms
+    for blank slate
+      drop db
+      recreate db
+      rm cms/migrations/0*.py
+      ./manage.py makemigrations
+      ./manage.py migrate
